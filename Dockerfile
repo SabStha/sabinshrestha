@@ -31,7 +31,12 @@ RUN chmod -R 775 storage bootstrap/cache database
 RUN composer install --no-dev --optimize-autoloader
 
 # Build Vite assets
+RUN apt-get update && apt-get install -y nodejs npm
 RUN npm install && npm run build
+
+RUN chmod -R 775 storage bootstrap/cache public/build
+
+
 
 # Optional: Clear Laravel caches to avoid old config/view issues
 RUN php artisan config:clear && php artisan view:clear && php artisan route:clear

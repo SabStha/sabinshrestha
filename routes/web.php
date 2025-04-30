@@ -11,7 +11,9 @@ use App\Http\Middleware\SetLocale;
 */
 
 Route::middleware([SetLocale::class])->group(function () {
-    Route::get('/', [RoadmapController::class, 'index'])->name('home');
+    Route::get('/', function () {
+        return redirect()->route('path.show', ['path' => 'soc']);
+    })->name('home');
     Route::get('/path/{path}', [RoadmapController::class, 'showPath'])->name('path.show');
     Route::get('/ajax/path/{path}', [RoadmapController::class, 'getPathContent'])->name('path.content');
 });

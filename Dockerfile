@@ -1,4 +1,4 @@
-# Use the official PHP image with necessary extensions
+# Use PHP base image with necessary extensions
 FROM php:8.2-fpm
 
 # Install system dependencies + Node.js for Vite
@@ -21,26 +21,27 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 # Set working directory
 WORKDIR /var/www
 
-# Copy project files (do this AFTER system setup)
+# Copy project files
 COPY . .
 
-# Set permissions early
+# Set permissions before build
 RUN chmod -R 775 storage bootstrap/cache database
 
 # Install PHP dependencies
 RUN composer install --no-dev --optimize-autoloader
 
+# Install Node/Vite dependencies
+RUN npm install
+
 # Build Vite assets
-RUN npm install && npm run build
+RUN npm run build
 
-# Clear Laravel caches
-RUN php artisan config:clear && php artisan route:clear && php artisan view:clear
-
-# Fix Vite build folder permissions (important)
+# Set correct permissions for Vite build output
 RUN chmod -R 775 public/build
 
-# Expose Laravel's dev port
-EXPOSE 8000
+# Laravel cache clear (optional but safe)
+RUN php artisan config:clear && php artisan view:clear && php artisan route:clear
 
-# Start Laravel's internal server
+# Expose port and start Laravel dev server
+EXPOSE 8000
 CMD php artisan serve --host=0.0.0.0 --port=8000

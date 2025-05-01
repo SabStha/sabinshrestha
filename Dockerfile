@@ -31,10 +31,8 @@ RUN chmod -R 775 storage bootstrap/cache database
 RUN composer install --no-dev --optimize-autoloader
 
 # Install Node/Vite dependencies
-RUN npm install
+RUN npm install && npm run build --verbose && ls -l public/build && cat public/build/manifest.json
 
-# Build Vite assets
-RUN npm run build
 
 # Set correct permissions for Vite build output
 RUN chmod -R 775 public/build

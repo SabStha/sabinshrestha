@@ -31,7 +31,13 @@ RUN chmod -R 775 storage bootstrap/cache database
 RUN composer install --no-dev --optimize-autoloader
 
 # Install Node/Vite dependencies
-RUN npm install && npm run build --verbose && ls -l public/build && cat public/build/manifest.json
+RUN npm install
+
+# Run build separately and fail early if there's an error
+RUN npm run build --verbose || (echo "❌ Vite build failed!" && exit 1)
+
+# Show output (if successful)
+RUN ls -l public/build && cat public/build/manifest.json || echo "Manifest still missing"
 
 
 # Set correct permissions for Vite build output

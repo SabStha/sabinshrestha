@@ -1,7 +1,15 @@
-# Use PHP base image with necessary extensions
+# Stage 1: Build Vite Assets
+FROM node:18 as nodebuilder
+
+WORKDIR /app
+COPY package*.json vite.config.js ./
+COPY resources ./resources
+RUN npm install && npm run build
+
+# Stage 2: PHP + Laravel
 FROM php:8.2-fpm
 
-# Install system dependencies + Node.js for Vite
+# System dependencies
 RUN apt-get update && apt-get install -y \
     git \
     curl \
@@ -11,9 +19,12 @@ RUN apt-get update && apt-get install -y \
     libonig-dev \
     libzip-dev \
     libxml2-dev \
+    libpng-dev \
+    libjpeg-dev \
+    libfreetype6-dev \
     nodejs \
     npm \
-    && docker-php-ext-install pdo pdo_mysql mbstring zip exif pcntl bcmath
+    && docker-php-ext-install pdo pdo_mysql mbstring zip exif pcntl bcmath gd
 
 # Install Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
@@ -21,31 +32,18 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 # Set working directory
 WORKDIR /var/www
 
-# Copy project files
+# Copy app files
 COPY . .
 
-# Set permissions before build
-RUN chmod -R 775 storage bootstrap/cache database
+# Copy Vite build output from Node stage
+COPY --from=nodebuilder /app/public/build ./public/build
 
-# Install PHP dependencies
+# Set permissions
+RUN chmod -R 775 storage bootstrap/cache public/build
+
+# Laravel backend install
 RUN composer install --no-dev --optimize-autoloader
+RUN php artisan config:clear && php artisan route:clear && php artisan view:clear
 
-# Install Node/Vite dependencies
-RUN npm install
-
-# Run build separately and fail early if there's an error
-RUN npm run build --verbose || (echo "❌ Vite build failed!" && exit 1)
-
-# Show output (if successful)
-RUN ls -l public/build && cat public/build/manifest.json || echo "Manifest still missing"
-
-
-# Set correct permissions for Vite build output
-RUN chmod -R 775 public/build
-
-# Laravel cache clear (optional but safe)
-RUN php artisan config:clear && php artisan view:clear && php artisan route:clear
-
-# Expose port and start Laravel dev server
 EXPOSE 8000
 CMD php artisan serve --host=0.0.0.0 --port=8000

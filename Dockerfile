@@ -1,30 +1,20 @@
-# Stage 1: Build Vite Assets
-FROM node:18 as nodebuilder
-
-WORKDIR /app
-COPY package*.json vite.config.js ./
-COPY resources ./resources
-RUN npm install && npm run build
-
-# Stage 2: PHP + Laravel
+# Use PHP base image with Laravel-friendly extensions
 FROM php:8.2-fpm
 
-# System dependencies
+# Install only essential system dependencies
 RUN apt-get update && apt-get install -y \
     git \
     curl \
     zip \
     unzip \
-    libpq-dev \
     libonig-dev \
     libzip-dev \
     libxml2-dev \
+    libpq-dev \
     libpng-dev \
     libjpeg-dev \
     libfreetype6-dev \
-    nodejs \
-    npm \
-    && docker-php-ext-install pdo pdo_mysql mbstring zip exif pcntl bcmath gd
+    && docker-php-ext-install pdo pdo_mysql mbstring zip exif pcntl bcmath
 
 # Install Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
@@ -32,18 +22,20 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 # Set working directory
 WORKDIR /var/www
 
-# Copy app files
+# Copy entire Laravel project
 COPY . .
 
-# Copy Vite build output from Node stage
-COPY --from=nodebuilder /app/public/build ./public/build
+# Set file permissions
+RUN chmod -R 775 storage bootstrap/cache public
 
-# Set permissions
-RUN chmod -R 775 storage bootstrap/cache public/build
-
-# Laravel backend install
+# Install PHP dependencies
 RUN composer install --no-dev --optimize-autoloader
+
+# Clear Laravel caches
 RUN php artisan config:clear && php artisan route:clear && php artisan view:clear
 
+# Expose Laravel development port
 EXPOSE 8000
+
+# Start the Laravel app
 CMD php artisan serve --host=0.0.0.0 --port=8000

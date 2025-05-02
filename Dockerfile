@@ -1,13 +1,13 @@
-# PHP base image
 FROM php:8.2-fpm
 
-# Install system dependencies and PHP extensions
+# Install system dependencies
 RUN apt-get update && apt-get install -y \
     nginx \
     curl \
     git \
     unzip \
     zip \
+    supervisor \
     libonig-dev \
     libzip-dev \
     libxml2-dev \
@@ -22,21 +22,24 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 # Set working directory
 WORKDIR /var/www
 
-# Copy everything
+# Copy app files
 COPY . .
-
-# Set permissions
-RUN chmod -R 775 public storage bootstrap/cache
 
 # Install PHP dependencies
 RUN composer install --no-dev --optimize-autoloader
 
-# Copy default nginx config
-RUN rm /etc/nginx/sites-enabled/default
-COPY ./nginx.conf /etc/nginx/conf.d/default.conf
+# Set permissions
+RUN chmod -R 775 public storage bootstrap/cache
 
-# Expose default web port
+# Remove default nginx config
+RUN rm /etc/nginx/sites-enabled/default
+
+# Add Laravel nginx config
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+# Add supervisord config to run both Nginx and PHP-FPM
+COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+
 EXPOSE 80
 
-# Start PHP and Nginx
-CMD service php8.2-fpm start && nginx -g "daemon off;"
+CMD ["/usr/bin/supervisord"]

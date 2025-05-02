@@ -1,7 +1,7 @@
-# Use PHP base image with necessary extensions
+# Use official PHP image with necessary extensions
 FROM php:8.2-fpm
 
-# Install required PHP extensions and basic tools
+# Install PHP extensions and system dependencies
 RUN apt-get update && apt-get install -y \
     git \
     curl \
@@ -19,28 +19,29 @@ RUN apt-get update && apt-get install -y \
 # Install Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
-# Set the working directory
+# Set working directory
 WORKDIR /var/www
 
-# Copy full Laravel project to container
+# Copy Laravel project into the container
 COPY . .
 
-# Ensure static assets exist and check their content
-RUN echo "✅ Verifying public assets:" && \
-    ls -l public/css && \
-    cat public/css/style.css || echo "❌ style.css MISSING"
+# 🔥 Force-copy style.css to ensure it's inside the image
+COPY public/css/style.css public/css/style.css
 
-# Set proper permissions for storage and cache folders
-RUN chmod -R 775 storage bootstrap/cache public
+# 🧪 Debug: show contents of public/css
+RUN echo "🚨 DEBUG: public/css contents:" && ls -l public/css && cat public/css/style.css || echo "❌ FILE NOT FOUND"
+
+# Set proper permissions
+RUN chmod -R 775 public storage bootstrap/cache
 
 # Install PHP dependencies
 RUN composer install --no-dev --optimize-autoloader
 
-# Clear Laravel caches (optional but safe)
-RUN php artisan config:clear && php artisan route:clear && php artisan view:clear
+# Clear Laravel caches
+RUN php artisan config:clear && php artisan view:clear && php artisan route:clear
 
-# Expose the default Laravel dev server port
+# Expose default Laravel port
 EXPOSE 8000
 
-# Start the Laravel development server
+# Start Laravel dev server
 CMD php artisan serve --host=0.0.0.0 --port=8000

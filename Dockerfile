@@ -22,24 +22,25 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 # Set working directory
 WORKDIR /var/www
 
-# Copy app files
+# Copy entire Laravel project
 COPY . .
+
+# ✅ Fix file ownership + permissions
+RUN chown -R www-data:www-data storage bootstrap/cache \
+ && chmod -R ug+rwx storage bootstrap/cache public
 
 # Install PHP dependencies
 RUN composer install --no-dev --optimize-autoloader
 
-# Set permissions
-RUN chmod -R 775 public storage bootstrap/cache
-
-# Remove default nginx config
+# Replace default Nginx config with our Laravel config
 RUN rm /etc/nginx/sites-enabled/default
-
-# Add Laravel nginx config
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-# Add supervisord config to run both Nginx and PHP-FPM
+# Supervisor config to run both nginx + php-fpm
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
+# Expose web port
 EXPOSE 80
 
+# Start both PHP-FPM and Nginx via supervisor
 CMD ["/usr/bin/supervisord"]

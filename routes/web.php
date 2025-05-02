@@ -18,6 +18,17 @@ Route::middleware([SetLocale::class])->group(function () {
     Route::get('/ajax/path/{path}', [RoadmapController::class, 'getPathContent'])->name('path.content');
 });
 
+Route::get('/debug-log', function () {
+    $logPath = storage_path('logs/laravel.log');
+    if (!file_exists($logPath)) {
+        return '❌ Log file not found.';
+    }
+    return response()->file($logPath);
+});
+
+Route::get('/health', fn () => ['status' => 'OK']);
+
+
 // Language routes (outside middleware group to avoid infinite redirect)
 Route::get('/language/{locale}', [RoadmapController::class, 'changeLanguage'])->name('change.language');
 Route::post('/lang/switch', [RoadmapController::class, 'switchLanguage'])->name('lang.switch');

@@ -1,6 +1,6 @@
 FROM php:8.2-fpm
 
-# Install system dependencies
+# Install system packages and PHP extensions
 RUN apt-get update && apt-get install -y \
     nginx \
     curl \
@@ -22,25 +22,31 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 # Set working directory
 WORKDIR /var/www
 
-# Copy entire Laravel project
+# Copy full Laravel project
 COPY . .
 
-# ✅ Fix file ownership + permissions
+# Set permissions and correct ownership
 RUN chown -R www-data:www-data storage bootstrap/cache \
  && chmod -R ug+rwx storage bootstrap/cache public
 
 # Install PHP dependencies
 RUN composer install --no-dev --optimize-autoloader
 
-# Replace default Nginx config with our Laravel config
+# ✅ Clear and rebuild Laravel config to ensure correct APP_URL
+RUN php artisan config:clear \
+ && php artisan config:cache \
+ && php artisan route:clear \
+ && php artisan view:clear
+
+# Replace default Nginx config with Laravel-specific config
 RUN rm /etc/nginx/sites-enabled/default
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-# Supervisor config to run both nginx + php-fpm
+# Copy supervisord config to run both PHP-FPM and Nginx
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
-# Expose web port
+# Expose port 80 for HTTP
 EXPOSE 80
 
-# Start both PHP-FPM and Nginx via supervisor
+# Start Supervisor (which runs nginx + php-fpm)
 CMD ["/usr/bin/supervisord"]

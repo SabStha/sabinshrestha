@@ -1,7 +1,7 @@
-# Use PHP base image with Laravel-friendly extensions
+# Use PHP base image with necessary extensions
 FROM php:8.2-fpm
 
-# Install only essential system dependencies
+# Install required PHP extensions and basic tools
 RUN apt-get update && apt-get install -y \
     git \
     curl \
@@ -19,23 +19,28 @@ RUN apt-get update && apt-get install -y \
 # Install Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
-# Set working directory
+# Set the working directory
 WORKDIR /var/www
 
-# Copy entire Laravel project
+# Copy full Laravel project to container
 COPY . .
 
-# Set file permissions
+# Ensure static assets exist and check their content
+RUN echo "✅ Verifying public assets:" && \
+    ls -l public/css && \
+    cat public/css/style.css || echo "❌ style.css MISSING"
+
+# Set proper permissions for storage and cache folders
 RUN chmod -R 775 storage bootstrap/cache public
 
 # Install PHP dependencies
 RUN composer install --no-dev --optimize-autoloader
 
-# Clear Laravel caches
+# Clear Laravel caches (optional but safe)
 RUN php artisan config:clear && php artisan route:clear && php artisan view:clear
 
-# Expose Laravel development port
+# Expose the default Laravel dev server port
 EXPOSE 8000
 
-# Start the Laravel app
+# Start the Laravel development server
 CMD php artisan serve --host=0.0.0.0 --port=8000

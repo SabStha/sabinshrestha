@@ -1,16 +1,16 @@
-# Use official PHP image with necessary extensions
+# PHP base image
 FROM php:8.2-fpm
 
-# Install PHP extensions and system dependencies
+# Install system dependencies and PHP extensions
 RUN apt-get update && apt-get install -y \
-    git \
+    nginx \
     curl \
-    zip \
+    git \
     unzip \
+    zip \
     libonig-dev \
     libzip-dev \
     libxml2-dev \
-    libpq-dev \
     libpng-dev \
     libjpeg-dev \
     libfreetype6-dev \
@@ -22,26 +22,21 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 # Set working directory
 WORKDIR /var/www
 
-# Copy Laravel project into the container
+# Copy everything
 COPY . .
 
-# 🔥 Force-copy style.css to ensure it's inside the image
-COPY public/css/style.css public/css/style.css
-
-# 🧪 Debug: show contents of public/css
-RUN echo "🚨 DEBUG: public/css contents:" && ls -l public/css && cat public/css/style.css || echo "❌ FILE NOT FOUND"
-
-# Set proper permissions
+# Set permissions
 RUN chmod -R 775 public storage bootstrap/cache
 
 # Install PHP dependencies
 RUN composer install --no-dev --optimize-autoloader
 
-# Clear Laravel caches
-RUN php artisan config:clear && php artisan view:clear && php artisan route:clear
+# Copy default nginx config
+RUN rm /etc/nginx/sites-enabled/default
+COPY ./nginx.conf /etc/nginx/conf.d/default.conf
 
-# Expose default Laravel port
-EXPOSE 8000
+# Expose default web port
+EXPOSE 80
 
-# Start Laravel dev server
-CMD php artisan serve --host=0.0.0.0 --port=8000
+# Start PHP and Nginx
+CMD service php8.2-fpm start && nginx -g "daemon off;"
